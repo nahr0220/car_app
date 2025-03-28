@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # 엑셀 파일 불러오기
-df = pd.read_excel("C:/Users/24100801/OneDrive - 오토플러스(주)/나혜린/현물/국토부_app/제목 없는 스프레드시트 (3).xlsx")
+df = pd.read_excel("C:/Users/24100801/OneDrive - 오토플러스(주)/나혜린/국토부_app/제목 없는 스프레드시트 (3).xlsx")
 
 # 기본적인 UI
 st.title("중고차 평균 가격 조회")
