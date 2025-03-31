@@ -77,7 +77,7 @@ if not filtered.empty:
         combined[col] = [
             f"<span style='font-weight:900; font-size:1.1em;'>{int(m):,}</span><br>({int(mi):,} ~ {int(ma):,})<br>[{int(c)}건]"
             if pd.notna(m) and pd.notna(mi) and pd.notna(ma) and pd.notna(c)
-            else "None"
+            else " "
             for m, mi, ma, c in zip(mean[col], min_[col], max_[col], count_[col])
         ]
 
