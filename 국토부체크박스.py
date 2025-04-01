@@ -2,49 +2,112 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🚘 국토부 데이터 가격 분포도")
+
+# 초기화 버튼 동작 처리
+if "reset_triggered" not in st.session_state:
+    st.session_state.reset_triggered = False
+
+def reset_filters():
+    st.session_state.selected_maker = ""
+    st.session_state.selected_model = ""
+    st.session_state.selected_fuel = ""
+    st.session_state.reset_triggered = True
+
+# 👉 타이틀과 파일선택 + 초기화 버튼을 같은 줄에 배치
+title_col, file_col, reset_col = st.columns([6, 3, 1])
+with title_col:
+    st.title("🚘 국토부 데이터 가격 분포도")
+
+with file_col:
+    file_options = {
+        "20% 제거": ("국토부_pricerange_국산_연료추가.xlsx", "#e8f4fd"),
+        "30% 제거": ("국토부_pricerange_국산_연료추가30%.xlsx", "#fff3cd"),
+        "40% 제거": ("국토부_pricerange_국산_연료추가40%.xlsx", "#fde2e2")
+    }
+
+    st.markdown('<div style="font-size: 0.85rem;">📂 기준 파일 선택</div>', unsafe_allow_html=True)
+    selected_file_label = st.selectbox(
+        "",
+        list(file_options.keys()),
+        label_visibility="collapsed",
+        key="file_selectbox"
+    )
+    selected_file, bg_color = file_options[selected_file_label]
+
+    st.markdown(
+        f"""
+        <div style="
+            background-color: {bg_color};
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 0.8rem;
+            margin-top: -10px;
+            text-align: right;
+        ">
+        ✅ 기준: <b>{selected_file_label}</b> 데이터 사용 중
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with reset_col:
+    st.write("")
+    st.write("")
+    if st.button("🔄 조건 초기화"):
+        reset_filters()
+
 st.markdown("🔍 제조사, 모델, 연료를 선택하면 평균 가격과 범위를 확인할 수 있어요.")
 st.subheader("📊 2024년 국산 이전 데이터")
 
-# 엑셀 보기
-df = pd.read_excel("국토부_pricerange_국산_연료추가.xlsx")
+# 🔄 선택한 파일 불러오기
+df = pd.read_excel(selected_file)
 
 # 고정 구간 정의
 km_order = ['~3만km', '~6만km', '~9만km', '~12만km', '12만km초과']
 month_order = ['~1년', '~2년', '~3년', '~4년', '~5년', '~6년', '~7년',
                '7~10년', '10~15년', '15~20년', '20년 초과']
 
-# 콤보박스
-selected_maker = st.selectbox("제조사", [""] + sorted(df['제조사'].dropna().unique()), index=0)
+# ✅ 콤보박스: 제조사, 모델, 연료
+selected_maker = st.selectbox(
+    "제조사", [""] + sorted(df['제조사'].dropna().unique()),
+    index=0,
+    key="selected_maker"
+)
 
 if selected_maker:
     model_options = df[df['제조사'] == selected_maker]['모델명3'].dropna().unique()
-    selected_model = st.selectbox("모델", [""] + sorted(model_options), index=0)
+    selected_model = st.selectbox(
+        "모델", [""] + sorted(model_options),
+        index=0,
+        key="selected_model"
+    )
 
     if selected_model:
         fuel_options = df[
-            (df['제조사'] == selected_maker) &
+            (df['제조사'] == selected_maker) & 
             (df['모델명3'] == selected_model)
         ]['연료'].dropna().unique()
-        selected_fuel = st.selectbox("연료", [""] + sorted(fuel_options), index=0)
+        selected_fuel = st.selectbox(
+            "연료", [""] + sorted(fuel_options),
+            index=0,
+            key="selected_fuel"
+        )
 
         if selected_fuel:
-            # 필터링
             filtered = df[
                 (df['제조사'] == selected_maker) &
                 (df['모델명3'] == selected_model) &
                 (df['연료'] == selected_fuel)
             ]
 
-            # 차량 수
             total_count = filtered['count'].sum()
             st.markdown(f"**🚗 선택한 조건의 전체 차량 수: {int(total_count):,} 대**")
-            st.markdown("<div style='text-align: right;'>📌 단위: 만 원 (₩)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: right;'>📌 단위: <b>만 원</b> (₩)</div>", unsafe_allow_html=True)
 
             filtered['KM2'] = pd.Categorical(filtered['KM2'], categories=km_order, ordered=True)
 
             if not filtered.empty:
-                # 피벗 테이블
                 mean = filtered.pivot_table(index=['제조사', '모델명2', 'KM2'], columns='MONTHS', values='mean')
                 min_ = filtered.pivot_table(index=['제조사', '모델명2', 'KM2'], columns='MONTHS', values='min')
                 max_ = filtered.pivot_table(index=['제조사', '모델명2', 'KM2'], columns='MONTHS', values='max')
@@ -69,7 +132,8 @@ if selected_maker:
                 combined = mean.copy()
                 for col in month_order:
                     combined[col] = [
-                        f"<span style='font-weight:900; font-size:1.1em;'>{int(m):,}</span><br>({int(mi):,} ~ {int(ma):,})<br>[{int(c)}건]"
+                        f"<span style='font-weight:900; font-size:1.1em;'>{int(m):,}</span><br>"
+                        f"({int(mi):,} ~ {int(ma):,})<br>[{int(c)}건]"
                         if pd.notna(m) and pd.notna(mi) and pd.notna(ma) and pd.notna(c)
                         else " "
                         for m, mi, ma, c in zip(mean[col], min_[col], max_[col], count_[col])
@@ -82,10 +146,8 @@ if selected_maker:
                 combined['제조사'] = combined['제조사'].mask(combined['제조사'].duplicated()).fillna("")
                 combined['모델'] = combined['모델'].mask(combined['모델'].duplicated()).fillna("")
 
-                # 표 출력
                 st.markdown(combined.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-                # 설명 박스
                 st.markdown("""
                 <br>
                 <div style="
@@ -97,12 +159,23 @@ if selected_maker:
                     font-size: 0.95rem;
                 ">
                 <b>ℹ️ 표 구성 안내</b><br>
-                -  '기간'은 차량이전일에서 최초출고일을 기준으로 산출된 연식 구간입니다.<br>
-                -  모델은 세부 모델명을 상위 차종 기준으로 통합한 값입니다.<br>
-                -  가격은 <b>평균값</b>, 아래에는 <i>(최소~최대)</i> 범위와 <b>[건수]</b>가 함께 제공되며,<br>
-                &nbsp;&nbsp;&nbsp;데이터는 <u>하위 20%를 제외한 기준값</u>입니다.
+                본 표는 국토교통부 공공데이터를 기반으로, 모델, 차령(연식), 주행거리, 연료 종류를 기준으로 중고차 매매거래가의 통계값을 정리한 자료입니다.
+                <ul>
+                <li><b>차령 (1년~20년)</b> : 차량 이전 등록일과 최초 출고일의 차이를 기준으로 산출한 연식 구간입니다.</li>
+                <li><b>모델명</b> : 세부 트림이나 등급 구분 없이, 통합된 차량 모델명을 기준으로 정리하였습니다.</li>
+                <li><b>가격 정보</b> : 아래 세 가지 항목이 함께 표기됩니다.
+                    <ol>
+                    <li>평균 매매거래가</li>
+                    <li>최소~최대 매매거래가 범위</li>
+                    <li>해당 조건에 포함된 거래 건수</li>
+                    </ol>
+                    <div style="margin-top: 5px;">
+                    ※ 단, 사고 여부가 확인되지 않은 점을 고려하여, 
+                    <b>선택한 기준(20% / 30% / 40%)에 따라 하위 가격 데이터를 제외</b>한 후 산출된 값입니다.
+                    </div>
+                </li>
+                </ul>
                 </div>
                 """, unsafe_allow_html=True)
-
             else:
                 st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
