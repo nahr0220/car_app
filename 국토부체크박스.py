@@ -25,7 +25,7 @@ with file_col:
         "40% 제거": ("국토부_pricerange_국산_연료추가40%.xlsx", "#fde2e2")
     }
 
-    st.markdown('<div style="font-size: 0.85rem;">📂 기준 파일 선택</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size: 0.85rem;">📂 기준 데이터 선택</div>', unsafe_allow_html=True)
     selected_file_label = st.selectbox(
         "",
         list(file_options.keys()),
